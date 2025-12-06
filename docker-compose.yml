@@ -1,0 +1,43 @@
+version: '3'
+services:
+  # 1. Elasticsearch (The Database for Logs)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    container_name: soc_elasticsearch
+    environment:
+      - node.name=soc-node
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - soc_net
+
+  # 2. Kibana (The Dashboard/GUI)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9
+    container_name: soc_kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://soc_elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - soc_net
+
+  # 3. Suricata (The Intrusion Detection System)
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: soc_ids
+    network_mode: "host" # Must be host mode to sniff traffic
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    volumes:
+      - ./suricata-logs:/var/log/suricata
+    command: -i eth0 # Change eth0 to your actual network interface if needed
+
+networks:
+  soc_net:
+    driver: bridge
